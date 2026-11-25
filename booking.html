@@ -1,0 +1,282 @@
+
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ระบบจองแหล่งฝึก โรงพยาบาลพิจิตร</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#eef4f9;font-family:Tahoma,sans-serif;color:#183b56}
+header{background:#16466d;color:white;text-align:center;padding:25px}
+main{max-width:1200px;margin:auto;padding:20px}
+section{background:white;padding:20px;border-radius:15px;margin-bottom:20px}
+label{display:block;margin-top:12px;font-weight:bold}
+input,select,textarea{width:100%;padding:12px;margin:7px 0;border:1px solid #b9cbd9;border-radius:8px;font:inherit}
+button{background:#1976a3;color:white;border:0;border-radius:8px;padding:12px;margin:4px;cursor:pointer;font:inherit}
+.delete{background:#b94343}
+.edit{background:#b77b18}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;text-align:center}
+.cards div{background:#e5f1fa;padding:15px;border-radius:12px}
+strong{font-size:28px;display:block}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th,td{padding:12px;border-bottom:1px solid #ddd;text-align:left}
+th{background:#16466d;color:white}
+small{color:#64748b}
+@media(max-width:600px){main{padding:10px}.cards{font-size:12px}header h1{font-size:23px}}
+</style>
+</head>
+<body>
+<header>
+<h1>NURSE PHICHIT</h1>
+<h2>ระบบจองแหล่งฝึกนักศึกษาพยาบาล</h2>
+<p>กลุ่มภารกิจด้านการพยาบาล โรงพยาบาลพิจิตร</p>
+</header>
+<main>
+<section class="cards">
+<div>แหล่งฝึก<strong>37</strong>หน่วยงาน</div>
+<div>รายการจอง<strong id="total">0</strong>รายการ</div>
+<div>นักศึกษา<strong id="students">0</strong>คน-รายการ</div>
+</section>
+
+<section>
+<h2>📅 แบบฟอร์มจองแหล่งฝึก</h2>
+<p>ระบบทดลอง: กรุณาใช้ข้อมูลสมมติ</p>
+<form id="form">
+<label>มหาวิทยาลัย / ชั้นปี</label>
+<select id="uni" required></select>
+<input id="otherUni" placeholder="ระบุสถาบันและชั้นปี" hidden>
+<label>ตึก / หน่วยงาน</label>
+<select id="ward" required></select>
+<input id="otherWard" placeholder="ระบุชื่อหน่วยงาน" hidden>
+<label>รายวิชาที่ฝึก</label>
+<input id="subject">
+<label>วันที่เริ่มฝึก</label>
+<input type="date" id="start" required>
+<label>วันที่สิ้นสุด</label>
+<input type="date" id="end" required>
+<label>จำนวนนักศึกษา</label>
+<input type="number" id="num" min="1" required>
+<label>หมายเหตุ</label>
+<textarea id="note"></textarea>
+<button type="submit" id="save">บันทึกการจอง</button>
+<button type="button" onclick="resetForm()">ล้างแบบฟอร์ม</button>
+</form>
+</section>
+
+<section>
+<h2>📋 รายการจองแหล่งฝึก</h2>
+<div class="scroll">
+<table>
+<thead>
+<tr>
+<th>มหาวิทยาลัย</th>
+<th>หน่วยงาน</th>
+<th>รายวิชา</th>
+<th>เริ่มฝึก</th>
+<th>สิ้นสุด</th>
+<th>จำนวน</th>
+<th>หมายเหตุ</th>
+<th>จัดการ</th>
+</tr>
+</thead>
+<tbody id="rows"></tbody>
+</table>
+</div>
+</section>
+
+<section>
+<h2>📊 สรุปตามหน่วยงาน</h2>
+<div id="summary"></div>
+</section>
+
+<small>ระบบทดลอง บันทึกข้อมูลในเบราว์เซอร์เครื่องนี้เท่านั้น</small>
+</main>
+
+<script>
+const wards=[
+"งาน IC",
+"อายุรกรรมหญิง 1",
+"อายุรกรรมหญิง 2",
+"อายุรกรรมชาย 1",
+"อายุรกรรมชาย 2",
+"สงฆ์ - อาพาธ",
+"ICU อายุรกรรม",
+"พิเศษเฉลิมฯ 1",
+"พิเศษเฉลิมฯ 2",
+"พิเศษเฉลิมฯ 3",
+"พิเศษเฉลิมฯ 4",
+"พิเศษอายุรกรรม 7",
+"พิเศษศัลยกรรม",
+"กุมารเวชกรรม",
+"ทารกแรกเกิด",
+"สูติ-นรีเวชกรรม",
+"ห้องคลอด",
+"ศัลยกรรมชาย",
+"ศัลยกรรมหญิง",
+"ศัลยกรรมกระดูก 1",
+"ศัลยกรรมกระดูก 2",
+"ตา หู คอ จมูก",
+"ผู้ป่วยหนัก",
+"ไตเทียม",
+"วิกฤตศัลยกรรม",
+"ผู้ป่วยนอก",
+"อุบัติเหตุ-ฉุกเฉิน",
+"ศูนย์ประสานส่งต่อ",
+"ห้องผ่าตัด",
+"วิสัญญี",
+"งานจ่ายกลาง",
+"ศูนย์เปล",
+"ศูนย์มะเร็ง",
+"ส่องกล้อง",
+"EEG",
+"ศูนย์หัวใจ",
+"สูงอายุ",
+"อื่นๆ"
+];
+
+const universities=[
+"มหาวิทยาลัยนเรศวร หลักสูตรพยาบาลศาสตร์ ปี 2",
+"มหาวิทยาลัยนเรศวร หลักสูตรพยาบาลศาสตร์ ปี 3",
+"มหาวิทยาลัยนเรศวร หลักสูตรพยาบาลศาสตร์ ปี 4",
+"มหาวิทยาลัยราชภัฏพิบูลสงคราม พิษณุโลก หลักสูตรพยาบาลศาสตร์ ปี 2",
+"มหาวิทยาลัยราชภัฏพิบูลสงคราม พิษณุโลก หลักสูตรพยาบาลศาสตร์ ปี 3",
+"มหาวิทยาลัยราชภัฏพิบูลสงคราม พิษณุโลก หลักสูตรพยาบาลศาสตร์ ปี 4",
+"มหาวิทยาลัยจุฬาภรณ์ พยาบาลศาสตร์",
+"อื่นๆ"
+];
+
+const $=id=>document.getElementById(id);
+function options(id,list){
+$(id).add(new Option("กรุณาเลือก",""));
+list.forEach(x=>$(id).add(new Option(x,x)));
+}
+options("ward",wards);
+options("uni",universities);
+
+function toggle(){
+["uni","ward"].forEach(id=>{
+const other=$(id==="uni"?"otherUni":"otherWard");
+other.hidden=$(id).value!=="อื่นๆ";
+other.required=!other.hidden;
+});
+}
+$("uni").onchange=toggle;
+$("ward").onchange=toggle;
+
+let records=[];
+try{
+records=JSON.parse(localStorage.getItem("nurseBooking")||"[]");
+}catch(e){records=[]}
+let editing=null;
+
+function resetForm(){
+$("form").reset();
+editing=null;
+$("save").textContent="บันทึกการจอง";
+toggle();
+}
+
+function persist(next){
+try{
+localStorage.setItem("nurseBooking",JSON.stringify(next));
+records=next;
+render();
+return true;
+}catch(e){
+alert("ไม่สามารถบันทึกข้อมูลได้");
+return false;
+}
+}
+
+$("form").onsubmit=function(e){
+e.preventDefault();
+const r={
+id:editing||Date.now().toString(),
+uni:$("uni").value==="อื่นๆ"?$("otherUni").value.trim():$("uni").value,
+ward:$("ward").value==="อื่นๆ"?$("otherWard").value.trim():$("ward").value,
+subject:$("subject").value,
+start:$("start").value,
+end:$("end").value,
+num:Number($("num").value),
+note:$("note").value
+};
+
+if(!r.uni||!r.ward||!Number.isInteger(r.num)||r.num<1){
+alert("กรุณากรอกข้อมูลให้ครบถ้วน");
+return;
+}
+if(r.end<r.start){
+alert("กรุณาตรวจสอบวันที่สิ้นสุด");
+return;
+}
+
+const conflict=records.some(x=>
+x.id!==editing&&x.ward===r.ward&&
+x.start<=r.end&&x.end>=r.start);
+
+if(conflict&&!confirm("มีการจองช่วงเวลาซ้อนกัน ต้องการบันทึกต่อหรือไม่?"))return;
+
+if(persist([...records.filter(x=>x.id!==editing),r])){
+resetForm();
+alert("บันทึกสำเร็จ");
+}
+};
+
+function editRecord(id){
+const r=records.find(x=>x.id===id);
+editing=id;
+$("uni").value=universities.includes(r.uni)?r.uni:"อื่นๆ";
+$("otherUni").value=r.uni;
+$("ward").value=wards.includes(r.ward)?r.ward:"อื่นๆ";
+$("otherWard").value=r.ward;
+["subject","start","end","num","note"].forEach(k=>$(k).value=r[k]);
+toggle();
+$("save").textContent="บันทึกการแก้ไข";
+$("form").scrollIntoView({behavior:"smooth"});
+}
+
+function deleteRecord(id){
+if(confirm("ยืนยันยกเลิกรายการจอง?")){
+if(persist(records.filter(x=>x.id!==id))&&editing===id)resetForm();
+}
+}
+
+function render(){
+$("total").textContent=records.length;
+$("students").textContent=records.reduce((s,r)=>s+r.num,0);
+$("rows").replaceChildren();
+records.forEach(r=>{
+const tr=document.createElement("tr");
+["uni","ward","subject","start","end","num","note"].forEach(k=>{
+tr.insertCell().textContent=r[k];
+});
+const cell=tr.insertCell();
+const edit=document.createElement("button");
+edit.textContent="แก้ไข";
+edit.className="edit";
+edit.onclick=()=>editRecord(r.id);
+const del=document.createElement("button");
+del.textContent="ยกเลิก";
+del.className="delete";
+del.onclick=()=>deleteRecord(r.id);
+cell.append(edit,del);
+$("rows").append(tr);
+});
+
+$("summary").replaceChildren();
+const totals=new Map();
+records.forEach(r=>totals.set(r.ward,(totals.get(r.ward)||0)+r.num));
+totals.forEach((n,w)=>{
+const p=document.createElement("p");
+p.textContent=w+" : "+n+" คน-รายการ";
+$("summary").append(p);
+});
+if(!records.length)$("summary").textContent="ยังไม่มีข้อมูล";
+}
+toggle();
+render();
+</script>
+</body>
+</html>
